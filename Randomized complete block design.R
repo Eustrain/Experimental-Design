@@ -1,23 +1,31 @@
-##*******Randomized  Complete Block Design############*********
+##*******Randomized  Complete Block Design############*********       #
+# RCBD(y=variable,Entry=Treatment,Rep=Repetitions,ylab=name of y axis,#  
+# xlab=name of x axis,plot=type of plot)                              #
+# the plot save automatic in  our  working directory                  # 
+#....................................................................#
 
-data <- read.csv("data.csv",head=T)
-head(data)
-str(data) 
-names(data)<-c("REP","TRAT","y")
+library(ggplot2)
+library(ggpubr)
+library(agricolae)
 
+df <- read.csv("data.csv",head=T)
+head(df)
+str(df) 
 
-dat$REP <- as.factor(dat$REP)
-dat$TRAT <- as.factor(dat$TRAT)
-fm3 <- aov(y~TRAT+REP,data=dat)
-summary(fm3)
+df$REP <- as.factor(df$REP)
+df$TRAT <- as.factor(df$TRAT)
+m1<- aov(y~TRAT+REP,data=df)
+summary(m1)
 
-RCBD("y", "TRAT", "REP", data)
+Ex1 <- RCBD("y","TRAT", "REP","Yield","Treatment",plot ="Box",df)
+
 #################RCBD#############################
-RCBD<- function(y,Entry, Rep, dataframe){
+RCBD<- function(y,Entry, Rep, ylab,xlab,plot=c("Box","Bar"),dataframe){
   
   nt <- as.numeric(dataframe[,y])
   t <- as.factor(dataframe[, Entry])
   r <- as.factor(dataframe[,Rep])
+  dp <- data.frame("Entry"=t,"y"=nt)
   n <- length(nt)
   ntrat<- length(levels(t))
   nrep <- length(levels(r))
@@ -28,7 +36,7 @@ RCBD<- function(y,Entry, Rep, dataframe){
   gl_total <- n-1
   #############################
   stats <- tapply(dataframe[,y], list(dataframe[,Entry],dataframe[,Rep]), sum, na.rm = TRUE)
-  mean <- tapply(dataframe[,y], list(dataframe[,Entry]), mean, na.rm = TRUE)
+  Trat_mean <- tapply(dataframe[,y], list(dataframe[,Entry]), mean, na.rm = TRUE)
   ###########################################
   sum_rep <- apply(stats, 2, sum)
   sum_entry <- apply(stats,1,sum)
@@ -47,20 +55,65 @@ RCBD<- function(y,Entry, Rep, dataframe){
   FCt<-round((ms_treat/ms_error),4)
   FCr <-round(( ms_rep/ms_error),4) 
   #############################################
-  f.v<-c("Treatments","Rep","Error","Total")
-  G.L <-c(gl_treat,gl_rep,gl_error,gl_total)
+  ###### Anova data frame ####################
+  
+  
+  df <-c(gl_treat,gl_rep,gl_error,gl_total)
   SS <-c(ssq_treat,ssq_rep,ssq_error,ssq_total)
-  SQ <-c(ms_treat,ms_rep,ms_error,".")
-  f <-c(FCt,FCr,".",".")
+  SQ <-c(ms_treat,ms_rep,ms_error,NA)
+  f <-c(FCt,FCr,NA,NA)
   prt <- round(pf(FCt,gl_treat,gl_error, lower.tail=F),10)
   prr <- round(pf(FCr, gl_rep,gl_error, lower.tail=F),10)
-  prob <- c(prt,prr,".",".")
-  anv<- data.frame("."=f.v,"d.f"=G.L,"Sum Sq"=SS,"Mean sq"=SQ
-                   ,"F value"=f,"Pr(F)"=prob)
-  c.v <- (sd(nt)/mean(nt))*100
-  resul <- list(anv,mean,c.v)
-  print(resul) 
+  prob <- c(prt,prr,NA,NA)
+  anv<- data.frame(df,`Sum Sq`=SS,`Mean Sq`=SQ,`F value`=f,`Pr(>F)`=prob, check.names=FALSE)
+  rownames(anv) <- c("Treat","Rep","Error","Total")
+  class(anv) <- c("anova","data.frame")
+  
+##################################################
+
+df_mean <- data.frame("Means"=Trat_mean)
+  
+  ################Plots
+mx <- max(nt)+10  
+if(plot=="Box"){  
+  
+ 
+p <- ggplot(dp,aes(x=Entry,y=y,fill=Entry))+geom_boxplot(color="black")+
+    geom_hline(yintercept = mean( Trat_mean), linetype = 2,color="red")+ # Add horizontal line at base mean
+    stat_compare_means(method = "anova",label.y = mx)+        # Add global annova p-value
+    stat_compare_means(label = "p.signif", method = "t.test",
+                    ref.group = ".all.")+
+  geom_jitter(shape=16, position=position_jitter(0.2))+
+  labs(y=ylab,x=xlab)+theme(legend.position  = "none")
 }
+else if (plot=="Bar"){
+
+p <- ggplot(dp,aes(x=Entry,y=y,fill=Entry))+
+  stat_summary(fun.y = "mean",geom = "bar")+
+  stat_summary(fun.data = "mean_se",geom = "errorbar")+
+  stat_compare_means(method = "anova",label.y = mx)+        # Add global annova p-value
+  stat_compare_means(label = "p.signif", method = "t.test",
+                     ref.group = ".all.")+
+  labs(y=ylab,x=xlab)+theme(legend.position  = "none")
+  
+}
+
+ggsave(p, file = paste("plot", plot,".pdf",sep = "_"), scale = 1)
+
+###############output 
+
+c.v <-  ms_error/sqrt(mean(Trat_mean))
+resul <- list(ANOVA=anv,Means=df_mean,C.V = c.v,Plot=p)
+print(resul) 
+}
+
+
+
+
+
+
+
+
 
 
   
