@@ -17,7 +17,7 @@ df$TRAT <- as.factor(df$TRAT)
 m1<- aov(y~TRAT+REP,data=df)
 summary(m1)
 
-Ex1 <- RCBD("y","TRAT", "REP","Yield","Treatment",plot ="Box",df)
+Ex1 <- RCBD("yield","lineage", "block","Yield","Treatment",plot ="Bar",cotton)
 
 #################RCBD#############################
 RCBD<- function(y,Entry, Rep, ylab,xlab,plot=c("Box","Bar"),dataframe){
@@ -88,14 +88,11 @@ p <- ggplot(dp,aes(x=Entry,y=y,fill=Entry))+geom_boxplot(color="black")+
 }
 else if (plot=="Bar"){
 
-p <- ggplot(dp,aes(x=Entry,y=y,fill=Entry))+
-  stat_summary(fun.y = "mean",geom = "bar")+
-  stat_summary(fun.data = "mean_se",geom = "errorbar")+
-  stat_compare_means(method = "anova",label.y = mx)+        # Add global annova p-value
+p <- ggbarplot(dp, x = "Entry", y = "y", add = "mean_se",fill = "Entry")+
+  stat_compare_means(method = "anova", label.y = mx)+        # Add global annova p-value
   stat_compare_means(label = "p.signif", method = "t.test",
-                     ref.group = ".all.")+
-  labs(y=ylab,x=xlab)+theme(legend.position  = "none")
-  
+ref.group = ".all.")+labs(y=ylab,x=xlab)+theme(legend.position  = "none")
+
 }
 
 ggsave(p, file = paste("plot", plot,".pdf",sep = "_"), scale = 1)
@@ -106,13 +103,6 @@ c.v <-  ms_error/sqrt(mean(Trat_mean))
 resul <- list(ANOVA=anv,Means=df_mean,C.V = c.v,Plot=p)
 print(resul) 
 }
-
-
-
-
-
-
-
 
 
 
